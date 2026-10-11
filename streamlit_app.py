@@ -1,11 +1,8 @@
 import streamlit as st
-from collections import Counter
 import random
+from collections import Counter
 
-st.set_page_config(
-    page_title="AIタイピングコーチ",
-    page_icon="⌨️"
-)
+st.set_page_config(page_title="AIタイピングコーチ")
 
 st.title("⌨️ AIタイピングコーチ")
 
@@ -17,30 +14,46 @@ sentences = [
     ("りょこうにいきます", "ryokouniikimasu"),
 ]
 
+# 初回のみ問題生成
+if "question" not in st.session_state:
+    st.session_state.question = random.choice(sentences)
+
 if "mistakes" not in st.session_state:
     st.session_state.mistakes = []
 
-question = random.choice(sentences)
-
-jp = question[0]
-correct = question[1]
+jp, correct = st.session_state.question
 
 st.subheader("お題")
-
 st.write(jp)
 
 typed = st.text_input("ローマ字で入力")
 
-if st.button("判定"):
+col1, col2 = st.columns(2)
 
-    if typed == correct:
-        st.success("正解！")
-    else:
-        st.error("ミスがあります")
+with col1:
+    if st.button("判定"):
 
-        for a, b in zip(typed, correct):
-            if a != b:
-                st.session_state.mistakes.append(b)
+        if typed == correct:
+            st.success("正解！")
+        else:
+            st.error("ミスがあります")
+
+            # 長さが違っても比較
+            max_len = max(len(typed), len(correct))
+
+            for i in range(max_len):
+
+                t = typed[i] if i < len(typed) else "(なし)"
+                c = correct[i] if i < len(correct) else "(余分)"
+
+                if t != c:
+                    st.session_state.mistakes.append(c)
+
+with col2:
+    if st.button("次の問題"):
+
+        st.session_state.question = random.choice(sentences)
+        st.rerun()
 
 st.divider()
 
@@ -50,20 +63,22 @@ if st.session_state.mistakes:
 
     counter = Counter(st.session_state.mistakes)
 
-    for k, v in counter.most_common():
-        st.write(f"{k} : {v}回")
+    for char, count in counter.most_common():
+        st.write(f"{char} : {count}回")
 
-    weak_chars = "".join(counter.keys())
+    st.markdown("### AIコーチからのコメント")
 
-    if any(x in weak_chars for x in ["y"]):
+    weak = [x for x, _ in counter.most_common(3)]
+
+    if "y" in weak:
         st.warning(
-            "拗音（きゃ・きゅ・きょ、しゃ・しゅ・しょ等）を含む入力が苦手な傾向があります。"
+            "『きゃ・きゅ・きょ』『しゃ・しゅ・しょ』などの拗音の入力練習がおすすめです。"
         )
 
-    if any(x in weak_chars for x in ["r"]):
+    if "r" in weak:
         st.info(
-            "『りゃ』『りゅ』『りょ』を重点的に練習しましょう。"
+            "『りゃ・りゅ・りょ』を含む単語の練習を増やしましょう。"
         )
 
 else:
-    st.write("まだデータがありません")
+    st.write("まだ分析データがありません。")
